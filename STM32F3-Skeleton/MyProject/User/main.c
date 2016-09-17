@@ -19,9 +19,9 @@ int main ()
 	
 	while (1){
 	STM_EVAL_LEDOn (LED10);
-	Delay (500);
+	Delay (100);
 	STM_EVAL_LEDOff (LED10);
-	Delay (500);
+	Delay (100);
 	}
 
 }
