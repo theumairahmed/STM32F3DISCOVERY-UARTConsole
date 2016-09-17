@@ -7,23 +7,28 @@ RCC_ClocksTypeDef RCC_Clocks;
 
 /* Private function Prototypes */
 void USART1_Init (void);
-
+volatile char stringToSend[] = "Please Select the LED you Want to Turn on\r\nSelect From 3-10 and Enter:\r\n";
+volatile int intToReceive;
 int main ()
 	
 {
-
+  int i;
+	
+	
 /* -----SysTick end of count event each 1ms Used to Generate PreciseInterrupts for Delay function---- */
 	RCC_GetClocksFreq(&RCC_Clocks);
   SysTick_Config(RCC_Clocks.HCLK_Frequency / 1000);
 	
-	STM_EVAL_LEDInit (LED10);
-	USART1_Init();
+	for ( i = 0; i <=7; i++)
+	STM_EVAL_LEDInit(i);
+	
+	
+	USART1_Init(); // PA10= Rx, PA09 = Tx
+
+	
 	
 	while (1){
-	STM_EVAL_LEDOn (LED10);
-	Delay (50);
-	STM_EVAL_LEDOff (LED10);
-	Delay (50);
+	
 	}
 
 }
@@ -42,8 +47,8 @@ void USART1_Init ()
 	GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init (GPIOA, &GPIO_InitStruct);
 	
-	GPIO_PinAFConfig (GPIOA, GPIO_Pin_9 , GPIO_AF_7);
-	GPIO_PinAFConfig (GPIOA, GPIO_Pin_10 , GPIO_AF_7);
+	GPIO_PinAFConfig (GPIOA, GPIO_PinSource9 , GPIO_AF_7);
+	GPIO_PinAFConfig (GPIOA, GPIO_PinSource10, GPIO_AF_7);
 	
 	//Setting the UART 
 	RCC_APB2PeriphClockCmd (RCC_APB2Periph_USART1, ENABLE);
@@ -61,6 +66,7 @@ void USART1_Init ()
 	
 	///Enabling USART1 Interrupts
 	USART_ITConfig (USART1, USART_IT_TXE, ENABLE);
+	USART_ITConfig (USART1, USART_IT_RXNE, ENABLE);
 	NVIC_EnableIRQ (USART1_IRQn);
 	
  
@@ -70,14 +76,26 @@ void USART1_Init ()
 
 void USART1_IRQHandler (void)
 {
-
+ static int index = 0;
 	if (USART_GetITStatus (USART1, USART_IT_TXE) == SET )
 	{
-       USART_SendData(USART1, 'h');
-       USART_ClearITPendingBit(USART1, USART_IT_TXE);		
+       if (index >= (sizeof (stringToSend) - 1))
+				  USART_ITConfig (USART1, USART_IT_TXE, DISABLE);
+			 
+	        USART_SendData(USART1,stringToSend[index++]);
+          USART_ClearITPendingBit(USART1, USART_IT_TXE);		
 	}
 	
-	USART_ITConfig(USART1, USART_IT_TXE,DISABLE);
+	
+	if (USART_GetITStatus (USART1, USART_IT_RXNE) == SET )
+	{
+		intToReceive = USART_ReceiveData(USART1) - 0x33; 
+		if (intToReceive >=3 || intToReceive <=7)
+			STM_EVAL_LEDToggle (intToReceive);
+			
+	  USART_ClearITPendingBit(USART1, USART_IT_RXNE);	
+		
+	}
 
 }
 /**
